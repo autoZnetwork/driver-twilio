@@ -2,7 +2,7 @@
 
 namespace BotMan\Drivers\Twilio;
 
-use Twilio\Twiml;
+use Twilio\TwiML\VoiceResponse;
 use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\BotMan\Drivers\Events\GenericEvent;
@@ -85,7 +85,7 @@ class TwilioVoiceDriver extends TwilioDriver
             $text = $message->getText();
             $isQuestion = true;
             $parameters['buttons'] = $message->getButtons() ?? [];
-        } elseif ($message instanceof Twiml) {
+        } elseif ($message instanceof VoiceResponse) {
             $parameters['twiml'] = $message;
         } elseif ($message instanceof OutgoingMessage) {
             $text = $message->getText();
@@ -103,10 +103,11 @@ class TwilioVoiceDriver extends TwilioDriver
      * @param mixed $payload
      * @return Response
      */
-    public function sendPayload($payload)
+    public function sendPayload($payload): Response
     {
         if (isset($payload['twiml'])) {
-            return Response::create((string) $payload['twiml'])->send();
+            $response = new Response((string) $payload['twiml']);
+            return $response->send();
         }
 
         $sayParameters = [
@@ -120,18 +121,19 @@ class TwilioVoiceDriver extends TwilioDriver
             $sayParameters['language'] = $payload['language'];
         }
 
-        $response = new Twiml();
+        $voiceResponse = new VoiceResponse();
         if ($payload['question'] === true) {
             $input = $payload['input'] ?? $this->config->get('input', TwilioSettings::INPUT_DTMF);
-            $gather = $response->gather(['input' => $input]);
+            $gather = $voiceResponse->gather(['input' => $input]);
             $gather->say($payload['text'], $sayParameters);
             foreach ((array) $payload['buttons'] as $button) {
                 $gather->say($button['text'], $sayParameters);
             }
         } else {
-            $response->say($payload['text'], $sayParameters);
+            $voiceResponse->say($payload['text'], $sayParameters);
         }
 
-        return Response::create((string) $response)->send();
+        $response = new Response((string) $voiceResponse);
+        return $response->send();
     }
 }

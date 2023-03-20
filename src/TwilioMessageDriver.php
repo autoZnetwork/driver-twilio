@@ -2,7 +2,7 @@
 
 namespace BotMan\Drivers\Twilio;
 
-use Twilio\Twiml;
+use Twilio\TwiML\MessagingResponse;
 use Twilio\Rest\Client as Twilio;
 use BotMan\BotMan\Messages\Incoming\Answer;
 use BotMan\BotMan\Messages\Outgoing\Question;
@@ -80,7 +80,7 @@ class TwilioMessageDriver extends TwilioDriver
         if ($message instanceof Question) {
             $text = $message->getText();
             $parameters['buttons'] = $message->getButtons() ?? [];
-        } elseif ($message instanceof Twiml) {
+        } elseif ($message instanceof MessagingResponse) {
             $parameters['twiml'] = $message;
         } elseif ($message instanceof OutgoingMessage) {
             $attachment = $message->getAttachment();
@@ -105,7 +105,8 @@ class TwilioMessageDriver extends TwilioDriver
     public function sendPayload($payload)
     {
         if (isset($payload['twiml'])) {
-            return Response::create((string) $payload['twiml'])->send();
+            $response = new Response((string) $payload['twiml']);
+            return $response->send();
         }
 
         if (isset($payload['originate']) && $payload['originate'] === true) {
@@ -124,11 +125,12 @@ class TwilioMessageDriver extends TwilioDriver
 
             $message = $this->client->messages->create($payload['recipient'], $originatePayload);
 
-            return Response::create(json_encode($message->toArray()));
+            $response = new Response(json_encode($message->toArray()));
+            return $response->send();
         }
 
-        $response = new Twiml();
-        $message = $response->message();
+        $response = new MessagingResponse();
+        $message = $response->message('');
 
         $body = $payload['text'];
 
@@ -140,6 +142,7 @@ class TwilioMessageDriver extends TwilioDriver
             $message->media($payload['media']);
         }
 
-        return Response::create((string) $response)->send();
+        $response = new Response((string) $response);
+        return $response->send();
     }
 }
